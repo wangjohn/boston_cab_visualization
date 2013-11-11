@@ -16,22 +16,33 @@
         overflow: hidden;
       }
       #selector {
+        margin-top: 15px;
+        margin-left: auto;
+        margin-right: auto;
+        width: 300px;
+      }
+      #popup p {
+        margin-left: auto;
+        margin-right: auto;
+        width: 300px;
+      }
+      #popup {
         top: 50px;
         left: 50px;
-        width: 200px;
         position: absolute;
+        width: 350px;
+        height: 80px;
+        background: white;
         z-index: 1;
-      }
-      #range {
-        width: 200px;
       }
     </style>
   </head>
   <body>
     <div id="map"></div>
-    <div id="selector">
+    <div id="popup">
+      <div id="selector"></div>
       <p>
-        <label for="range">Time range:</label>
+        <label for="range">Time Range:</label>
         <input type="text" id="range" style="border: 0; color: #f6931f; font-weight: bold;" />
       </p>
     </div>
@@ -45,6 +56,7 @@
             mapTypeId: google.maps.MapTypeId.ROADMAP,
             panControl: false,
             zoomControl: false,
+            streetViewControl: false,
             center: bostonLatLng,
             styles:[{"stylers": [{"saturation": -25},{"lightness": 25}]}]
           });
@@ -57,23 +69,41 @@
         });
         heatmap.setMap(map);
 
-        function updateTaxiData(selectionFunc) {
+        var allData = [];
+        d3.csv("traindata_small.csv", function(err, data) {
+          data.forEach(function(d) {
+            d.time = parseDate(d.time);
+            allData.push(d);
+          });
+          updateTaxiData();
+        });
+
+        function updateTaxiData() {
           var taxiData = new google.maps.MVCArray();
           heatmap.setData(taxiData);
-          d3.csv("traindata_small.csv", function(err, data) {
-            data.forEach(function(d) {
-              d.time = parseDate(d.time);
-              if (selectionFunc(d)) {
-                taxiData.push(new google.maps.LatLng(d.latitude, d.longitude));
-              }
-            });
-          });
+          for (var i=0; i<allData.length; i++) {
+            var t = allData[i].time.getHours() * 4 + allData[i].time.getMinutes();
+            if (currentRangeMin <= t && t <= currentRangeMax) {
+              taxiData.push(new google.maps.LatLng(allData[i].latitude, allData[i].longitude));
+            }
+          }
         };
 
         function toTimeString(time) {
           var hours = Math.floor(time / 4);
           var minutes = Math.floor((time - hours * 4)) * 15;
-          return padNumber(hours, 2) + ":" + padNumber(minutes, 2);
+          var ampm = "am";
+          if (hours >= 12) {
+            ampm = "pm";
+          }
+
+          if (hours % 12 == 0) {
+            return "12:" + padNumber(minutes, 2) + ampm;
+          } else if (hours % 12 < 10) {
+            return padNumber(hours % 12, 1) + ":" + padNumber(minutes, 2) + ampm;
+          } else {
+            return padNumber(hours % 12, 2) + ":" + padNumber(minutes, 2) + ampm;
+          }
         };
 
         function padNumber(num, digits) {
@@ -83,8 +113,6 @@
           };
           return result;
         };
-
-        updateTaxiData(function(d) { return true });
 
         // Jquery UI Slider for time ranges.
         var currentRangeMin = 0;
@@ -98,10 +126,7 @@
             currentRangeMin = ui.values[0];
             currentRangeMax = ui.values[1];
             $("#range").val(toTimeString(currentRangeMin) + " - " + toTimeString(currentRangeMax));
-            updateTaxiData(function(d) {
-              var t = d.time.getHours() * 4 + d.time.getMinutes();
-              return (currentRangeMin <= t && t <= currentRangeMax);
-            });
+            updateTaxiData();
           }
         });
         $("#range").val(toTimeString(currentRangeMin) + " - " + toTimeString(currentRangeMax));
