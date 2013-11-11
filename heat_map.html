@@ -4,6 +4,8 @@
   <head>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=visualization"></script>
+    <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />
     <style>
       #map {
         top: 0;
@@ -13,23 +15,26 @@
         position: absolute;
         overflow: hidden;
       }
-      .SvgOverlay {
-      }
-      .SvgOverlay, .SvgOverlay svg {
+      #selector {
+        top: 50px;
+        left: 50px;
+        width: 200px;
         position: absolute;
-        top: 0;
-        left: 0;
+        z-index: 1;
       }
-      .SvgOverlay path {
-        stroke: Orange;
-        stroke-width: 2px;
-        fill: Orange;
-        fill-opacity: .3;
+      #range {
+        width: 200px;
       }
     </style>
   </head>
   <body>
     <div id="map"></div>
+    <div id="selector">
+      <p>
+        <label for="range">Time range:</label>
+        <input type="text" id="range" style="border: 0; color: #f6931f; font-weight: bold;" />
+      </p>
+    </div>
     <script src="http://d3js.org/d3.v3.js"></script>
     <script>
       $(function () {
@@ -38,25 +43,68 @@
         var map = new google.maps.Map($map[0], {
             zoom: 15,
             mapTypeId: google.maps.MapTypeId.ROADMAP,
+            panControl: false,
+            zoomControl: false,
             center: bostonLatLng,
             styles:[{"stylers": [{"saturation": -25},{"lightness": 25}]}]
           });
 
         var overlay = new google.maps.OverlayView();
         var taxiData = new google.maps.MVCArray();
-
+        var parseDate = d3.time.format("%Y-%m-%d %H:%M:%S").parse;
         var heatmap = new google.maps.visualization.HeatmapLayer({
-          radius: 5,
-          data: taxiData
+          radius: 15
         });
-
         heatmap.setMap(map);
 
-        d3.csv("traindata_small.csv", function(err, data) {
-          data.forEach(function(d) {
-            taxiData.push(new google.maps.LatLng(d.latitude, d.longitude));
+        function updateTaxiData(selectionFunc) {
+          var taxiData = new google.maps.MVCArray();
+          heatmap.setData(taxiData);
+          d3.csv("traindata_small.csv", function(err, data) {
+            data.forEach(function(d) {
+              d.time = parseDate(d.time);
+              if (selectionFunc(d)) {
+                taxiData.push(new google.maps.LatLng(d.latitude, d.longitude));
+              }
+            });
           });
+        };
+
+        function toTimeString(time) {
+          var hours = Math.floor(time / 4);
+          var minutes = Math.floor((time - hours * 4)) * 15;
+          return padNumber(hours, 2) + ":" + padNumber(minutes, 2);
+        };
+
+        function padNumber(num, digits) {
+          var result = num.toString();
+          while (result.length < digits) {
+            result = "0" + result;
+          };
+          return result;
+        };
+
+        updateTaxiData(function(d) { return true });
+
+        // Jquery UI Slider for time ranges.
+        var currentRangeMin = 0;
+        var currentRangeMax = 96;
+        $("#selector").slider({
+          range: true,
+          min: 0,
+          max: 96,
+          values: [currentRangeMin, currentRangeMax],
+          slide: function(event, ui) {
+            currentRangeMin = ui.values[0];
+            currentRangeMax = ui.values[1];
+            $("#range").val(toTimeString(currentRangeMin) + " - " + toTimeString(currentRangeMax));
+            updateTaxiData(function(d) {
+              var t = d.time.getHours() * 4 + d.time.getMinutes();
+              return (currentRangeMin <= t && t <= currentRangeMax);
+            });
+          }
         });
+        $("#range").val(toTimeString(currentRangeMin) + " - " + toTimeString(currentRangeMax));
       });
     </script>
   </body>
