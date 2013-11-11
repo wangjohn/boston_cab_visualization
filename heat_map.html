@@ -6,9 +6,12 @@
     <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=visualization"></script>
     <style>
       #map {
-        margin: auto;
-        width: 1000px;
-        height: 500px;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        overflow: hidden;
       }
       .SvgOverlay {
       }
@@ -33,28 +36,26 @@
         var bostonLatLng = new google.maps.LatLng(42.3581, -71.063642);
         var $map=$("#map");
         var map = new google.maps.Map($map[0], {
-            zoom: 14,
+            zoom: 15,
             mapTypeId: google.maps.MapTypeId.ROADMAP,
             center: bostonLatLng,
             styles:[{"stylers": [{"saturation": -25},{"lightness": 25}]}]
           });
 
-        var geoJson = provinces();
         var overlay = new google.maps.OverlayView();
-        var taxiData = [];
+        var taxiData = new google.maps.MVCArray();
+
+        var heatmap = new google.maps.visualization.HeatmapLayer({
+          radius: 5,
+          data: taxiData
+        });
+
+        heatmap.setMap(map);
 
         d3.csv("traindata_small.csv", function(err, data) {
           data.forEach(function(d) {
             taxiData.push(new google.maps.LatLng(d.latitude, d.longitude));
           });
-
-          var pointArray = new google.maps.MVCArray(taxiData);
-
-          heatmap = new google.maps.visualization.HeatmapLayer({
-            data: pointArray
-          });
-
-          heatmap.setMap(map);
         });
       });
     </script>
