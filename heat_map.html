@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+  <head>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=visualization"></script>
+    <style>
+      #map {
+        margin: auto;
+        width: 1000px;
+        height: 500px;
+      }
+      .SvgOverlay {
+      }
+      .SvgOverlay, .SvgOverlay svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      .SvgOverlay path {
+        stroke: Orange;
+        stroke-width: 2px;
+        fill: Orange;
+        fill-opacity: .3;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="http://d3js.org/d3.v3.js"></script>
+    <script>
+      $(function () {
+        var bostonLatLng = new google.maps.LatLng(42.3581, -71.063642);
+        var $map=$("#map");
+        var map = new google.maps.Map($map[0], {
+            zoom: 14,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
+            center: bostonLatLng,
+            styles:[{"stylers": [{"saturation": -25},{"lightness": 25}]}]
+          });
+
+        var geoJson = provinces();
+        var overlay = new google.maps.OverlayView();
+        var taxiData = [];
+
+        d3.csv("traindata_small.csv", function(err, data) {
+          data.forEach(function(d) {
+            taxiData.push(new google.maps.LatLng(d.latitude, d.longitude));
+          });
+
+          var pointArray = new google.maps.MVCArray(taxiData);
+
+          heatmap = new google.maps.visualization.HeatmapLayer({
+            data: pointArray
+          });
+
+          heatmap.setMap(map);
+        });
+      });
+    </script>
+  </body>
+</html>
